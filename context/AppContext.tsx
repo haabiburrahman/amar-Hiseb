@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Customer, Product, Transaction, PersonalTransaction } from '../types';
 import { useAuth } from './AuthContext.tsx';
@@ -27,7 +28,7 @@ interface AppContextType {
   storeLogo: string;
   invoiceColor: string;
   invoiceFont: string;
-  addCustomer: (customer: Omit<Customer, 'id' | 'totalDue' | 'createdAt'>) => Promise<void>;
+  addCustomer: (customer: Omit<Customer, 'id' | 'createdAt'>) => Promise<void>;
   updateCustomer: (id: string, updates: Partial<Customer>) => Promise<void>;
   deleteCustomer: (id: string) => Promise<void>;
   addProduct: (product: Omit<Product, 'id' | 'createdAt'>) => Promise<void>;
@@ -46,7 +47,6 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
 
-  // Local States
   const [storeName, setStoreName] = useState('Amar Hisab');
   const [storeAddress, setStoreAddress] = useState('ঢাকা, বাংলাদেশ');
   const [storePhone, setStorePhone] = useState('০১xxxxxxxxx');
@@ -59,7 +59,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [personalTransactions, setPersonalTransactions] = useState<PersonalTransaction[]>([]);
 
-  // Setup Firestore Realtime Listeners when user is logged in
   useEffect(() => {
     if (!user) {
       setCustomers([]);
@@ -71,7 +70,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const userPath = `users/${user.uid}`;
 
-    // Listen to Settings
     const unsubSettings = onSnapshot(doc(db, userPath, 'config', 'settings'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -84,25 +82,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     });
 
-    // Listen to Customers
     const qCustomers = query(collection(db, userPath, 'customers'), orderBy('createdAt', 'desc'));
     const unsubCustomers = onSnapshot(qCustomers, (snapshot) => {
       setCustomers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
     });
 
-    // Listen to Products
     const qProducts = query(collection(db, userPath, 'products'), orderBy('createdAt', 'desc'));
     const unsubProducts = onSnapshot(qProducts, (snapshot) => {
       setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
     });
 
-    // Listen to Transactions
     const qTransactions = query(collection(db, userPath, 'transactions'), orderBy('date', 'desc'));
     const unsubTransactions = onSnapshot(qTransactions, (snapshot) => {
       setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
     });
 
-    // Listen to Personal Transactions
     const qPersonal = query(collection(db, userPath, 'personalTransactions'), orderBy('date', 'desc'));
     const unsubPersonal = onSnapshot(qPersonal, (snapshot) => {
       setPersonalTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PersonalTransaction)));
@@ -122,11 +116,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await setDoc(doc(db, `users/${user.uid}/config`, 'settings'), details, { merge: true });
   };
 
-  const addCustomer = async (data: Omit<Customer, 'id' | 'totalDue' | 'createdAt'>) => {
+  const addCustomer = async (data: Omit<Customer, 'id' | 'createdAt'>) => {
     if (!user) return;
     await addDoc(collection(db, `users/${user.uid}`, 'customers'), {
       ...data,
-      totalDue: 0,
+      totalDue: data.totalDue || 0,
       createdAt: Date.now()
     });
   };
@@ -164,14 +158,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const batch = writeBatch(db);
     const userPath = `users/${user.uid}`;
     
-    // 1. Add the transaction
     const newTxRef = doc(collection(db, userPath, 'transactions'));
     batch.set(newTxRef, {
       ...data,
       date: Date.now()
     });
 
-    // 2. Update Customer's totalDue
     const customerRef = doc(db, userPath, 'customers', data.customerId);
     const currentCustomer = customers.find(c => c.id === data.customerId);
     if (currentCustomer) {
@@ -180,8 +172,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
     }
 
-    // 3. Update Products quantities
     data.items.forEach(item => {
+      if (item.productId === 'payment_adjustment') return;
       const productRef = doc(db, userPath, 'products', item.productId);
       const currentProduct = products.find(p => p.id === item.productId);
       if (currentProduct) {
@@ -208,8 +200,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const clearAllData = async () => {
-    // For safety, only implement if really needed, normally not recommended for cloud apps without caution
-    alert("Cloud data clearing is restricted. Please delete items individually.");
+    if (!user) return;
+    if (!confirm("আপনি কি নিশ্চিত যে আপনি সকল ডাটা মুছে ফেলতে চান? এটি আর ফিরিয়ে আনা সম্ভব নয়।")) return;
+
+    try {
+      const userPath = `users/${user.uid}`;
+      const batch = writeBatch(db);
+
+      // ফায়ারবেস লিমিটের কারণে এক ব্যাচে ৫০০টির বেশি ডিলিট করা যায় না। 
+      // ছোট ব্যবসার জন্য এটি সাধারণত যথেষ্ট। বড় ডেটার ক্ষেত্রে এটি লুপে করতে হতো।
+      customers.forEach(c => batch.delete(doc(db, userPath, 'customers', c.id)));
+      products.forEach(p => batch.delete(doc(db, userPath, 'products', p.id)));
+      transactions.forEach(t => batch.delete(doc(db, userPath, 'transactions', t.id)));
+      personalTransactions.forEach(pt => batch.delete(doc(db, userPath, 'personalTransactions', pt.id)));
+
+      await batch.commit();
+      alert("আপনার সকল ডাটা সফলভাবে মুছে ফেলা হয়েছে।");
+    } catch (error: any) {
+      console.error("Clear data error:", error);
+      alert("ডাটা মুছতে সমস্যা হয়েছে: " + error.message);
+    }
   };
 
   const loadDemoData = async () => {
@@ -218,7 +228,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const userPath = `users/${user.uid}`;
 
     const demoCustomers = [
-      { name: 'রহিম উল্লাহ', phone: '01712345678', upazila: 'মিরপুর', totalDue: 0, createdAt: Date.now() },
+      { name: 'রহিম উল্লাহ', phone: '01712345678', upazila: 'মিরপুর', totalDue: 500, createdAt: Date.now() },
       { name: 'করিম শেখ', phone: '01887654321', upazila: 'উত্তরা', totalDue: 0, createdAt: Date.now() }
     ];
 

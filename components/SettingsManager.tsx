@@ -1,12 +1,13 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { storage } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Store, Save, CheckCircle, MapPin, Phone, Image as ImageIcon, Palette, Type, X, Database, Trash2, RefreshCcw, Loader2 } from 'lucide-react';
+import { Store, Save, CheckCircle, MapPin, Phone, Image as ImageIcon, Palette, Type, X, Database, Trash2, RefreshCcw, Loader2, AlertTriangle } from 'lucide-react';
 
 const SettingsManager = () => {
-  const { storeName, storeAddress, storePhone, storeLogo, invoiceColor, invoiceFont, updateStoreDetails, loadDemoData } = useAppContext();
+  const { storeName, storeAddress, storePhone, storeLogo, invoiceColor, invoiceFont, updateStoreDetails, loadDemoData, clearAllData } = useAppContext();
   const { user } = useAuth();
   
   const [details, setDetails] = useState({
@@ -18,7 +19,6 @@ const SettingsManager = () => {
     font: ''
   });
 
-  // Sync internal state with context when context loads from Firestore
   useEffect(() => {
     setDetails({
       name: storeName,
@@ -31,6 +31,7 @@ const SettingsManager = () => {
   }, [storeName, storeAddress, storePhone, storeLogo, invoiceColor, invoiceFont]);
   
   const [isUploading, setIsUploading] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   const [saved, setSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,6 +61,12 @@ const SettingsManager = () => {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleClearAll = async () => {
+    setIsClearing(true);
+    await clearAllData();
+    setIsClearing(false);
   };
 
   return (
@@ -119,7 +126,7 @@ const SettingsManager = () => {
               </div>
             </div>
 
-            <button type="submit" className="flex items-center space-x-2 bg-indigo-600 text-white px-6 py-3 rounded-xl transition-all shadow-lg hover:bg-indigo-700">
+            <button type="submit" className="flex items-center space-x-2 bg-indigo-600 text-white px-6 py-3 rounded-xl transition-all shadow-lg hover:bg-indigo-700 active:scale-95">
               <Save size={18} />
               <span>পরিবর্তন সংরক্ষণ করুন</span>
             </button>
@@ -169,17 +176,33 @@ const SettingsManager = () => {
             </div>
           </div>
 
-          <div className="bg-rose-50 rounded-2xl border border-rose-100 p-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <RefreshCcw size={20} className="text-rose-600" />
-              <h3 className="text-lg font-bold text-rose-800">অ্যাডভান্সড অপশন</h3>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
+            <div className="flex items-center space-x-2 border-b pb-4">
+              <RefreshCcw size={20} className="text-indigo-600" />
+              <h3 className="text-lg font-bold">অ্যাডভান্সড অপশন</h3>
             </div>
             <button 
               onClick={loadDemoData}
-              className="w-full bg-white border border-rose-200 text-rose-600 font-bold py-3 rounded-xl hover:bg-rose-100 transition-all flex items-center justify-center space-x-2"
+              className="w-full bg-slate-50 border border-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-100 transition-all flex items-center justify-center space-x-2"
             >
               <Database size={18} />
-              <span>ডিমো ডেটা লোড করুন (Cloud Sync)</span>
+              <span>ডিমো ডেটা লোড করুন</span>
+            </button>
+          </div>
+
+          <div className="bg-rose-50 rounded-2xl border border-rose-100 p-6">
+            <div className="flex items-center space-x-2 mb-2">
+              <AlertTriangle size={20} className="text-rose-600" />
+              <h3 className="text-lg font-bold text-rose-800">Danger Zone (বিপজ্জনক এলাকা)</h3>
+            </div>
+            <p className="text-sm text-rose-600 mb-6">নিচের বাটনে ক্লিক করলে আপনার সকল কাস্টমার, পণ্য এবং ট্রানজেকশন ডেটা চিরস্থায়ীভাবে মুছে যাবে। এটি আর ফিরিয়ে আনা সম্ভব নয়।</p>
+            <button 
+              onClick={handleClearAll}
+              disabled={isClearing}
+              className="w-full bg-rose-600 text-white font-bold py-4 rounded-xl hover:bg-rose-700 transition-all flex items-center justify-center space-x-2 shadow-lg shadow-rose-100 disabled:opacity-50 active:scale-95"
+            >
+              {isClearing ? <Loader2 className="animate-spin" size={20} /> : <Trash2 size={20} />}
+              <span>{isClearing ? 'মুছে ফেলা হচ্ছে...' : 'সকল ডেটা ডিলিট করুন'}</span>
             </button>
           </div>
         </div>
