@@ -5,7 +5,7 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
+  apiKey: process.env.FIREBASE_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: "myhisabe-dca0f.firebaseapp.com",
   projectId: "myhisabe-dca0f",
   storageBucket: "myhisabe-dca0f.firebasestorage.app",
