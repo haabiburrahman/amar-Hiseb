@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { 
@@ -135,7 +134,8 @@ const ReportManager = () => {
 
             if (!customer) {
               const newId = crypto.randomUUID();
-              addCustomer({ name: custName, phone: 'N/A', upazila: 'Imported' });
+              // Fix: Added missing totalDue property to satisfy Omit<Customer, "id" | "createdAt">
+              addCustomer({ name: custName, phone: 'N/A', upazila: 'Imported', totalDue: 0 });
               targetId = newId; // Note: addCustomer is async-like in state, but for simple import we assume it works
             }
 

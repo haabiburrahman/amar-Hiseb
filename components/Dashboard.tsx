@@ -8,7 +8,8 @@ import {
   Wallet,
   AlertCircle,
   Database,
-  ArrowRight
+  ArrowRight,
+  Truck
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -34,11 +35,12 @@ const MetricCard = ({ title, value, icon: Icon, color, subValue }: any) => (
 );
 
 const Dashboard = () => {
-  const { customers, products, transactions, storeName, loadDemoData } = useAppContext();
+  const { customers, products, transactions, suppliers, storeName, loadDemoData } = useAppContext();
 
   const totalSales = transactions.reduce((sum, t) => sum + t.totalAmount, 0);
   const totalProfit = transactions.reduce((sum, t) => sum + t.profit, 0);
   const totalDue = customers.reduce((sum, c) => sum + c.totalDue, 0);
+  const totalSupplierDue = suppliers.reduce((sum, s) => sum + s.totalDue, 0);
 
   if (transactions.length === 0 && products.length === 0 && customers.length === 0) {
     return (
@@ -103,6 +105,13 @@ const Dashboard = () => {
           icon={AlertCircle} 
           color="bg-rose-500" 
           subValue={`${customers.filter(c => c.totalDue > 0).length} জন বাকি আছেন`}
+        />
+        <MetricCard 
+          title="সাপ্লায়ার বকেয়া" 
+          value={`৳${totalSupplierDue.toLocaleString()}`} 
+          icon={Truck} 
+          color="bg-orange-500" 
+          subValue={`${suppliers.filter(s => s.totalDue > 0).length} জন পাওনাদার`}
         />
       </div>
 

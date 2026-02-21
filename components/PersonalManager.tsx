@@ -19,6 +19,17 @@ const PersonalManager = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
   
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+
+  const months = [
+    'জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন',
+    'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'
+  ];
+
+  const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
+
   const [formData, setFormData] = useState({
     type: 'expense' as 'income' | 'expense',
     amount: '',
@@ -26,17 +37,22 @@ const PersonalManager = () => {
     note: ''
   });
 
-  const income = personalTransactions
+  const monthlyTransactions = personalTransactions.filter(tx => {
+    const d = new Date(tx.date);
+    return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+  });
+
+  const income = monthlyTransactions
     .filter(tx => tx.type === 'income')
     .reduce((sum, tx) => sum + tx.amount, 0);
     
-  const expense = personalTransactions
+  const expense = monthlyTransactions
     .filter(tx => tx.type === 'expense')
     .reduce((sum, tx) => sum + tx.amount, 0);
     
   const balance = income - expense;
 
-  const filteredTx = personalTransactions.filter(tx => {
+  const filteredTx = monthlyTransactions.filter(tx => {
     if (filter === 'all') return true;
     return tx.type === filter;
   });
@@ -63,13 +79,32 @@ const PersonalManager = () => {
           <h1 className="text-2xl font-bold text-slate-800">পার্সোনাল হিসেব</h1>
           <p className="text-slate-500">আপনার ব্যক্তিগত আয় ও ব্যয়ের হিসাব রাখুন</p>
         </div>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg"
-        >
-          <Plus size={20} />
-          <span>এন্ট্রি যুক্ত করুন</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex bg-white border rounded-xl p-1 shadow-sm">
+            <select 
+              value={selectedMonth} 
+              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              className="bg-transparent text-sm font-bold text-slate-700 outline-none px-2 py-1 cursor-pointer"
+            >
+              {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+            </select>
+            <div className="w-px h-4 bg-slate-200 self-center mx-1"></div>
+            <select 
+              value={selectedYear} 
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="bg-transparent text-sm font-bold text-slate-700 outline-none px-2 py-1 cursor-pointer"
+            >
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg"
+          >
+            <Plus size={20} />
+            <span className="hidden sm:inline">এন্ট্রি যুক্ত করুন</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -78,7 +113,7 @@ const PersonalManager = () => {
             <ArrowUpCircle size={24} />
           </div>
           <div>
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">মোট আয়</p>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{months[selectedMonth]} মাসের আয়</p>
             <p className="text-xl font-bold text-slate-800">৳{income.toLocaleString()}</p>
           </div>
         </div>
@@ -87,7 +122,7 @@ const PersonalManager = () => {
             <ArrowDownCircle size={24} />
           </div>
           <div>
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">মোট ব্যয়</p>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{months[selectedMonth]} মাসের ব্যয়</p>
             <p className="text-xl font-bold text-slate-800">৳{expense.toLocaleString()}</p>
           </div>
         </div>
@@ -96,7 +131,7 @@ const PersonalManager = () => {
             <Wallet size={24} />
           </div>
           <div>
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">ব্যালেন্স</p>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">বর্তমান ব্যালেন্স</p>
             <p className={`text-xl font-bold ${balance >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
               ৳{balance.toLocaleString()}
             </p>

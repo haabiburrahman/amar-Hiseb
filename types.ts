@@ -47,6 +47,25 @@ export interface PersonalTransaction {
   date: number;
 }
 
+export interface Supplier {
+  id: string;
+  name: string;
+  phone: string;
+  company: string;
+  totalDue: number;
+  createdAt: number;
+}
+
+export interface SupplierTransaction {
+  id: string;
+  supplierId: string;
+  supplierName: string;
+  amount: number;
+  type: 'payment' | 'purchase';
+  note: string;
+  date: number;
+}
+
 export interface MonthlyReport {
   month: string;
   totalBuy: number;

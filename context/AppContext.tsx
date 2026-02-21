@@ -1,7 +1,6 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Customer, Product, Transaction, PersonalTransaction } from '../types';
-import { useAuth } from './AuthContext.tsx';
+import { Customer, Product, Transaction, PersonalTransaction, Supplier, SupplierTransaction } from '../types';
+import { useAuth } from './AuthContext';
 import { db } from '../lib/firebase';
 import { 
   collection, 
@@ -22,6 +21,8 @@ interface AppContextType {
   products: Product[];
   transactions: Transaction[];
   personalTransactions: PersonalTransaction[];
+  suppliers: Supplier[];
+  supplierTransactions: SupplierTransaction[];
   storeName: string;
   storeAddress: string;
   storePhone: string;
@@ -37,6 +38,11 @@ interface AppContextType {
   addTransaction: (transaction: Omit<Transaction, 'id' | 'date'>) => Promise<void>;
   addPersonalTransaction: (transaction: Omit<PersonalTransaction, 'id' | 'date'>) => Promise<void>;
   deletePersonalTransaction: (id: string) => Promise<void>;
+  addSupplier: (supplier: Omit<Supplier, 'id' | 'createdAt'>) => Promise<void>;
+  updateSupplier: (id: string, updates: Partial<Supplier>) => Promise<void>;
+  deleteSupplier: (id: string) => Promise<void>;
+  addSupplierTransaction: (transaction: Omit<SupplierTransaction, 'id' | 'date'>) => Promise<void>;
+  deleteSupplierTransaction: (id: string) => Promise<void>;
   updateStoreDetails: (details: { name: string; address: string; phone: string; logo?: string; color?: string; font?: string }) => Promise<void>;
   loadDemoData: () => Promise<void>;
   clearAllData: () => Promise<void>;
@@ -58,6 +64,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [products, setProducts] = useState<Product[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [personalTransactions, setPersonalTransactions] = useState<PersonalTransaction[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [supplierTransactions, setSupplierTransactions] = useState<SupplierTransaction[]>([]);
 
   useEffect(() => {
     if (!user) {
@@ -65,6 +73,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setProducts([]);
       setTransactions([]);
       setPersonalTransactions([]);
+      setSuppliers([]);
+      setSupplierTransactions([]);
       return;
     }
 
@@ -102,23 +112,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setPersonalTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PersonalTransaction)));
     });
 
+    const qSuppliers = query(collection(db, userPath, 'suppliers'), orderBy('createdAt', 'desc'));
+    const unsubSuppliers = onSnapshot(qSuppliers, (snapshot) => {
+      setSuppliers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Supplier)));
+    });
+
+    const qSupplierTx = query(collection(db, userPath, 'supplierTransactions'), orderBy('date', 'desc'));
+    const unsubSupplierTx = onSnapshot(qSupplierTx, (snapshot) => {
+      setSupplierTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierTransaction)));
+    });
+
     return () => {
       unsubSettings();
       unsubCustomers();
       unsubProducts();
       unsubTransactions();
       unsubPersonal();
+      unsubSuppliers();
+      unsubSupplierTx();
     };
   }, [user]);
 
   const updateStoreDetails = async (details: { name: string; address: string; phone: string; logo?: string; color?: string; font?: string }) => {
     if (!user) return;
-    await setDoc(doc(db, `users/${user.uid}/config`, 'settings'), details, { merge: true });
+    await setDoc(doc(db, "users", user.uid, "config", "settings"), details, { merge: true });
   };
 
   const addCustomer = async (data: Omit<Customer, 'id' | 'createdAt'>) => {
     if (!user) return;
-    await addDoc(collection(db, `users/${user.uid}`, 'customers'), {
+    await addDoc(collection(db, "users", user.uid, "customers"), {
       ...data,
       totalDue: data.totalDue || 0,
       createdAt: Date.now()
@@ -127,17 +149,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateCustomer = async (id: string, updates: Partial<Customer>) => {
     if (!user) return;
-    await updateDoc(doc(db, `users/${user.uid}`, 'customers', id), updates);
+    await updateDoc(doc(db, "users", user.uid, "customers", id), updates);
   };
 
   const deleteCustomer = async (id: string) => {
     if (!user) return;
-    await deleteDoc(doc(db, `users/${user.uid}`, 'customers', id));
+    try {
+      await deleteDoc(doc(db, "users", user.uid, "customers", id));
+    } catch (err) {
+      console.error("Delete Error:", err);
+      alert('ডিলিট করা যায়নি!');
+    }
   };
 
   const addProduct = async (data: Omit<Product, 'id' | 'createdAt'>) => {
     if (!user) return;
-    await addDoc(collection(db, `users/${user.uid}`, 'products'), {
+    await addDoc(collection(db, "users", user.uid, "products"), {
       ...data,
       createdAt: Date.now()
     });
@@ -145,40 +172,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
     if (!user) return;
-    await updateDoc(doc(db, `users/${user.uid}`, 'products', id), updates);
+    await updateDoc(doc(db, "users", user.uid, "products", id), updates);
   };
 
   const deleteProduct = async (id: string) => {
     if (!user) return;
-    await deleteDoc(doc(db, `users/${user.uid}`, 'products', id));
+    try {
+      await deleteDoc(doc(db, "users", user.uid, "products", id));
+    } catch (err) {
+      console.error("Delete Error:", err);
+    }
   };
 
   const addTransaction = async (data: Omit<Transaction, 'id' | 'date'>) => {
     if (!user) return;
     const batch = writeBatch(db);
-    const userPath = `users/${user.uid}`;
+    const userRef = `users/${user.uid}`;
     
-    const newTxRef = doc(collection(db, userPath, 'transactions'));
+    const newTxRef = doc(collection(db, userRef, "transactions"));
     batch.set(newTxRef, {
       ...data,
       date: Date.now()
     });
 
-    const customerRef = doc(db, userPath, 'customers', data.customerId);
+    const customerRef = doc(db, userRef, "customers", data.customerId);
     const currentCustomer = customers.find(c => c.id === data.customerId);
     if (currentCustomer) {
       batch.update(customerRef, {
-        totalDue: currentCustomer.totalDue + data.dueAmount
+        totalDue: (currentCustomer.totalDue || 0) + data.dueAmount
       });
     }
 
     data.items.forEach(item => {
       if (item.productId === 'payment_adjustment') return;
-      const productRef = doc(db, userPath, 'products', item.productId);
+      const productRef = doc(db, userRef, "products", item.productId);
       const currentProduct = products.find(p => p.id === item.productId);
       if (currentProduct) {
         batch.update(productRef, {
-          quantity: Math.max(0, currentProduct.quantity - item.quantity)
+          quantity: Math.max(0, (currentProduct.quantity || 0) - item.quantity)
         });
       }
     });
@@ -188,7 +219,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addPersonalTransaction = async (data: Omit<PersonalTransaction, 'id' | 'date'>) => {
     if (!user) return;
-    await addDoc(collection(db, `users/${user.uid}`, 'personalTransactions'), {
+    await addDoc(collection(db, "users", user.uid, "personalTransactions"), {
       ...data,
       date: Date.now()
     });
@@ -196,7 +227,79 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deletePersonalTransaction = async (id: string) => {
     if (!user) return;
-    await deleteDoc(doc(db, `users/${user.uid}`, 'personalTransactions', id));
+    try {
+      await deleteDoc(doc(db, "users", user.uid, "personalTransactions", id));
+    } catch (err) {
+      console.error("Delete Error:", err);
+    }
+  };
+
+  const addSupplier = async (data: Omit<Supplier, 'id' | 'createdAt'>) => {
+    if (!user) return;
+    await addDoc(collection(db, "users", user.uid, "suppliers"), {
+      ...data,
+      totalDue: data.totalDue || 0,
+      createdAt: Date.now()
+    });
+  };
+
+  const updateSupplier = async (id: string, updates: Partial<Supplier>) => {
+    if (!user) return;
+    await updateDoc(doc(db, "users", user.uid, "suppliers", id), updates);
+  };
+
+  const deleteSupplier = async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, "users", user.uid, "suppliers", id));
+    } catch (err) {
+      console.error("Delete Error:", err);
+    }
+  };
+
+  const addSupplierTransaction = async (data: Omit<SupplierTransaction, 'id' | 'date'>) => {
+    if (!user) return;
+    const batch = writeBatch(db);
+    const userRef = `users/${user.uid}`;
+    
+    const newTxRef = doc(collection(db, userRef, "supplierTransactions"));
+    batch.set(newTxRef, {
+      ...data,
+      date: Date.now()
+    });
+
+    const supplierRef = doc(db, userRef, "suppliers", data.supplierId);
+    const currentSupplier = suppliers.find(s => s.id === data.supplierId);
+    if (currentSupplier) {
+      const adjustment = data.type === 'purchase' ? data.amount : -data.amount;
+      batch.update(supplierRef, {
+        totalDue: (currentSupplier.totalDue || 0) + adjustment
+      });
+    }
+
+    await batch.commit();
+  };
+
+  const deleteSupplierTransaction = async (id: string) => {
+    if (!user) return;
+    const tx = supplierTransactions.find(t => t.id === id);
+    if (!tx) return;
+
+    const batch = writeBatch(db);
+    const userRef = `users/${user.uid}`;
+    
+    batch.delete(doc(db, userRef, "supplierTransactions", id));
+
+    const supplierRef = doc(db, userRef, "suppliers", tx.supplierId);
+    const currentSupplier = suppliers.find(s => s.id === tx.supplierId);
+    if (currentSupplier) {
+      const adjustment = tx.type === 'purchase' ? -tx.amount : tx.amount;
+      batch.update(supplierRef, {
+        totalDue: (currentSupplier.totalDue || 0) + adjustment
+      });
+    }
+
+    await batch.commit();
   };
 
   const clearAllData = async () => {
@@ -204,15 +307,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!confirm("আপনি কি নিশ্চিত যে আপনি সকল ডাটা মুছে ফেলতে চান? এটি আর ফিরিয়ে আনা সম্ভব নয়।")) return;
 
     try {
-      const userPath = `users/${user.uid}`;
       const batch = writeBatch(db);
+      const userRef = `users/${user.uid}`;
 
-      // ফায়ারবেস লিমিটের কারণে এক ব্যাচে ৫০০টির বেশি ডিলিট করা যায় না। 
-      // ছোট ব্যবসার জন্য এটি সাধারণত যথেষ্ট। বড় ডেটার ক্ষেত্রে এটি লুপে করতে হতো।
-      customers.forEach(c => batch.delete(doc(db, userPath, 'customers', c.id)));
-      products.forEach(p => batch.delete(doc(db, userPath, 'products', p.id)));
-      transactions.forEach(t => batch.delete(doc(db, userPath, 'transactions', t.id)));
-      personalTransactions.forEach(pt => batch.delete(doc(db, userPath, 'personalTransactions', pt.id)));
+      customers.forEach(c => batch.delete(doc(db, userRef, 'customers', c.id)));
+      products.forEach(p => batch.delete(doc(db, userRef, 'products', p.id)));
+      transactions.forEach(t => batch.delete(doc(db, userRef, 'transactions', t.id)));
+      personalTransactions.forEach(pt => batch.delete(doc(db, userRef, 'personalTransactions', pt.id)));
+      suppliers.forEach(s => batch.delete(doc(db, userRef, 'suppliers', s.id)));
+      supplierTransactions.forEach(st => batch.delete(doc(db, userRef, 'supplierTransactions', st.id)));
 
       await batch.commit();
       alert("আপনার সকল ডাটা সফলভাবে মুছে ফেলা হয়েছে।");
@@ -225,7 +328,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const loadDemoData = async () => {
     if (!user) return;
     const batch = writeBatch(db);
-    const userPath = `users/${user.uid}`;
+    const userRef = `users/${user.uid}`;
 
     const demoCustomers = [
       { name: 'রহিম উল্লাহ', phone: '01712345678', upazila: 'মিরপুর', totalDue: 500, createdAt: Date.now() },
@@ -237,14 +340,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       { name: 'হেডফোন প্রো', category: 'এক্সেসরিজ', quantity: 5, buyingPrice: 800, createdAt: Date.now() }
     ];
 
+    const demoSuppliers = [
+      { name: 'করিম এন্টারপ্রাইজ', phone: '01911223344', company: 'স্যামসাং ডিস্ট্রিবিউশন', totalDue: 15000, createdAt: Date.now() },
+      { name: 'জসিম ট্রেডার্স', phone: '01755667788', company: 'এক্সেসরিজ ওয়ার্ল্ড', totalDue: 0, createdAt: Date.now() }
+    ];
+
     demoCustomers.forEach(c => {
-      const ref = doc(collection(db, userPath, 'customers'));
+      const ref = doc(collection(db, userRef, 'customers'));
       batch.set(ref, c);
     });
 
     demoProducts.forEach(p => {
-      const ref = doc(collection(db, userPath, 'products'));
+      const ref = doc(collection(db, userRef, 'products'));
       batch.set(ref, p);
+    });
+
+    demoSuppliers.forEach(s => {
+      const ref = doc(collection(db, userRef, 'suppliers'));
+      batch.set(ref, s);
     });
 
     await batch.commit();
@@ -257,6 +370,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       products,
       transactions,
       personalTransactions,
+      suppliers,
+      supplierTransactions,
       storeName,
       storeAddress,
       storePhone,
@@ -272,6 +387,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addTransaction,
       addPersonalTransaction,
       deletePersonalTransaction,
+      addSupplier,
+      updateSupplier,
+      deleteSupplier,
+      addSupplierTransaction,
+      deleteSupplierTransaction,
       updateStoreDetails,
       loadDemoData,
       clearAllData,

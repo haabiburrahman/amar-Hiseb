@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { useAppContext } from '../context/AppContext.tsx';
+import { useAppContext } from '../context/AppContext';
 import { 
   ShoppingCart, 
   Trash2, 
@@ -110,7 +110,8 @@ const SalesManager = () => {
     addCustomer({
       name: newCustomer.name,
       phone: newCustomer.phone,
-      upazila: newCustomer.upazila || 'N/A'
+      upazila: newCustomer.upazila || 'N/A',
+      totalDue: 0
     });
     setNewCustomer({ name: '', phone: '', upazila: '' });
     setIsCustomerModalOpen(false);
@@ -259,6 +260,8 @@ const SalesManager = () => {
     }
   };
 
+  const availableProducts = products.filter(p => p.quantity > 0);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-10">
       <div className="lg:col-span-2 space-y-6">
@@ -270,11 +273,11 @@ const SalesManager = () => {
              <ShoppingCart size={16}/> পণ্য নির্বাচন করুন
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {products.map(product => (
+            {availableProducts.map(product => (
               <div 
                 key={product.id} 
                 onClick={() => addToCart(product)} 
-                className={`p-3 border rounded-xl cursor-pointer hover:border-indigo-500 hover:shadow-md transition-all group ${product.quantity === 0 ? 'opacity-50 grayscale bg-slate-50 pointer-events-none' : 'bg-white'}`}
+                className="p-3 border rounded-xl cursor-pointer hover:border-indigo-500 hover:shadow-md transition-all group bg-white"
               >
                 <div className="flex justify-between items-start mb-1">
                   <span className="font-bold text-slate-800 text-sm line-clamp-1">{product.name}</span>
@@ -285,6 +288,11 @@ const SalesManager = () => {
                 <div className="text-indigo-600 font-bold text-sm">৳{product.buyingPrice} <span className="text-[10px] text-slate-400 font-normal">(ক্রয়)</span></div>
               </div>
             ))}
+            {availableProducts.length === 0 && (
+              <div className="col-span-full py-8 text-center text-slate-400 border-2 border-dashed border-slate-100 rounded-xl">
+                কোনো পণ্য খুঁজে পাওয়া যায়নি
+              </div>
+            )}
           </div>
         </div>
         

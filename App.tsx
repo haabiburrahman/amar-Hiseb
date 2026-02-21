@@ -11,18 +11,20 @@ import {
   Store,
   Settings,
   Wallet,
-  LogOut
+  LogOut,
+  Truck
 } from 'lucide-react';
-import { AppProvider, useAppContext } from './context/AppContext.tsx';
-import { AuthProvider, useAuth } from './context/AuthContext.tsx';
-import Dashboard from './components/Dashboard.tsx';
-import CustomerManager from './components/CustomerManager.tsx';
-import InventoryManager from './components/InventoryManager.tsx';
-import SalesManager from './components/SalesManager.tsx';
-import ReportManager from './components/ReportManager.tsx';
-import SettingsManager from './components/SettingsManager.tsx';
-import PersonalManager from './components/PersonalManager.tsx';
-import Login from './components/Login.tsx';
+import { AppProvider, useAppContext } from './context/AppContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Dashboard from './components/Dashboard';
+import CustomerManager from './components/CustomerManager';
+import InventoryManager from './components/InventoryManager';
+import SalesManager from './components/SalesManager';
+import ReportManager from './components/ReportManager';
+import SettingsManager from './components/SettingsManager';
+import PersonalManager from './components/PersonalManager';
+import SupplierManager from './components/SupplierManager';
+import Login from './components/Login';
 
 const AppContent = () => {
   const { user, loading, logout } = useAuth();
@@ -46,6 +48,7 @@ const AppContent = () => {
     { to: '/', icon: LayoutDashboard, label: 'ড্যাশবোর্ড' },
     { to: '/customers', icon: Users, label: 'কাস্টমার' },
     { to: '/inventory', icon: Package, label: 'ইনভেন্টরি' },
+    { to: '/suppliers', icon: Truck, label: 'সাপ্লায়ার' },
     { to: '/sales', icon: ShoppingCart, label: 'বিক্রয়' },
     { to: '/personal', icon: Wallet, label: 'পার্সোনাল হিসেব' },
     { to: '/reports', icon: BarChart3, label: 'রিপোর্ট' },
@@ -115,6 +118,7 @@ const AppContent = () => {
             <Route path="/" element={<Dashboard />} />
             <Route path="/customers" element={<CustomerManager />} />
             <Route path="/inventory" element={<InventoryManager />} />
+            <Route path="/suppliers" element={<SupplierManager />} />
             <Route path="/sales" element={<SalesManager />} />
             <Route path="/personal" element={<PersonalManager />} />
             <Route path="/reports" element={<ReportManager />} />
