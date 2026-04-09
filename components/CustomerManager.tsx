@@ -236,6 +236,31 @@ const CustomerManager = () => {
     setIsPaymentModalOpen(false); setPaymentAmount(''); setIsSuccessModalOpen(true);
   };
 
+  const handleExportCSV = () => {
+    const headers = ['Name', 'Phone', 'Upazila', 'Total Due'];
+    const data = customers.map(c => [
+      `"${c.name}"`,
+      `"${c.phone}"`,
+      `"${c.upazila}"`,
+      c.totalDue
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => row.join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `customers_data_${new Date().getTime()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -253,6 +278,10 @@ const CustomerManager = () => {
                });
              }; reader.readAsText(file);
           }} />
+          <button onClick={handleExportCSV} className="flex items-center space-x-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg border">
+            <Download size={18} />
+            <span className="hidden sm:inline font-medium text-sm">ডাউনলোড</span>
+          </button>
           <button onClick={() => fileInputRef.current?.click()} className="flex items-center space-x-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg border"><Upload size={18} /><span className="hidden sm:inline font-medium text-sm">ইম্পোর্ট</span></button>
           <button onClick={handleOpenAddModal} className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow-sm font-bold"><UserPlus size={18} /><span>নতুন কাস্টমার</span></button>
         </div>

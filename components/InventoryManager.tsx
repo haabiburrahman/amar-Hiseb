@@ -7,11 +7,13 @@ const InventoryManager = () => {
   const { products, transactions, addProduct, deleteProduct, updateProduct } = useAppContext();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newProduct, setNewProduct] = useState({ 
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [formData, setFormData] = useState({ 
     name: '', 
     category: '', 
     quantity: 0, 
-    buyingPrice: 0 
+    buyingPrice: 0,
+    unit: 'pcs' as 'pcs' | 'kg'
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -40,14 +42,41 @@ const InventoryManager = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProduct.name || newProduct.quantity < 0) return;
-    addProduct({
-      ...newProduct,
-      quantity: Number(newProduct.quantity),
-      buyingPrice: Number(newProduct.buyingPrice)
-    });
-    setNewProduct({ name: '', category: '', quantity: 0, buyingPrice: 0 });
+    if (!formData.name || formData.quantity < 0) return;
+    
+    const productData = {
+      ...formData,
+      quantity: Number(formData.quantity),
+      buyingPrice: Number(formData.buyingPrice)
+    };
+
+    if (editingProduct) {
+      updateProduct(editingProduct.id, productData);
+    } else {
+      addProduct(productData);
+    }
+    
+    setFormData({ name: '', category: '', quantity: 0, buyingPrice: 0, unit: 'pcs' });
+    setEditingProduct(null);
     setIsModalOpen(false);
+  };
+
+  const openAddModal = () => {
+    setEditingProduct(null);
+    setFormData({ name: '', category: '', quantity: 0, buyingPrice: 0, unit: 'pcs' });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (product: any) => {
+    setEditingProduct(product);
+    setFormData({
+      name: product.name,
+      category: product.category,
+      quantity: product.quantity,
+      buyingPrice: product.buyingPrice,
+      unit: product.unit || 'pcs'
+    });
+    setIsModalOpen(true);
   };
 
   const handleDownloadCSV = () => {
@@ -154,7 +183,7 @@ const InventoryManager = () => {
             <span className="hidden sm:inline">ডাউনলোড করুন</span>
           </button>
           <button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={openAddModal}
             className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg transition-colors shadow-sm"
           >
             <PackagePlus size={20} />
@@ -210,7 +239,7 @@ const InventoryManager = () => {
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className={`font-bold ${product.quantity < 5 ? 'text-rose-600' : 'text-slate-800'}`}>
-                            {product.quantity} পিস
+                            {product.quantity} {product.unit === 'kg' ? 'কেজি' : 'পিস'}
                           </span>
                           <span className="text-[10px] text-slate-400">ক্রয়: ৳{product.buyingPrice}</span>
                         </div>
@@ -230,7 +259,10 @@ const InventoryManager = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-1">
-                          <button className="p-2 text-slate-400 hover:text-indigo-600 transition-colors">
+                          <button 
+                            onClick={() => openEditModal(product)}
+                            className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
+                          >
                             <Edit3 size={16} />
                           </button>
                           <button 
@@ -256,7 +288,9 @@ const InventoryManager = () => {
         <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl scale-up-center">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-800">নতুন পণ্য যুক্ত করুন</h2>
+              <h2 className="text-xl font-bold text-slate-800">
+                {editingProduct ? 'পণ্য এডিট করুন' : 'নতুন পণ্য যুক্ত করুন'}
+              </h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                 <X size={24} />
               </button>
@@ -271,23 +305,36 @@ const InventoryManager = () => {
                     type="text" 
                     className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="যেমন: লেদার ব্যাগ"
-                    value={newProduct.name}
-                    onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">ক্যাটাগরি</label>
-                <div className="relative">
-                  <Layers className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
-                  <input 
-                    required
-                    type="text" 
-                    className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="যেমন: এক্সেসরিজ"
-                    value={newProduct.category}
-                    onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">একক (Unit)</label>
+                  <select 
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={formData.unit}
+                    onChange={(e) => setFormData({...formData, unit: e.target.value as 'pcs' | 'kg'})}
+                  >
+                    <option value="pcs">পিস (Pcs)</option>
+                    <option value="kg">কেজি (KG)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">ক্যাটাগরি</label>
+                  <div className="relative">
+                    <Layers className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                    <input 
+                      required
+                      type="text" 
+                      className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="যেমন: এক্সেসরিজ"
+                      value={formData.category}
+                      onChange={(e) => setFormData({...formData, category: e.target.value})}
+                    />
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -300,8 +347,8 @@ const InventoryManager = () => {
                       type="number" 
                       min="0"
                       className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
-                      value={newProduct.quantity}
-                      onChange={(e) => setNewProduct({...newProduct, quantity: Number(e.target.value)})}
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({...formData, quantity: Number(e.target.value)})}
                     />
                   </div>
                 </div>
@@ -312,8 +359,8 @@ const InventoryManager = () => {
                     type="number" 
                     min="0"
                     className="w-full px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
-                    value={newProduct.buyingPrice}
-                    onChange={(e) => setNewProduct({...newProduct, buyingPrice: Number(e.target.value)})}
+                    value={formData.buyingPrice}
+                    onChange={(e) => setFormData({...formData, buyingPrice: Number(e.target.value)})}
                   />
                 </div>
               </div>
@@ -322,7 +369,7 @@ const InventoryManager = () => {
                   type="submit"
                   className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors shadow-lg"
                 >
-                  স্টকে যুক্ত করুন
+                  {editingProduct ? 'আপডেট করুন' : 'স্টকে যুক্ত করুন'}
                 </button>
               </div>
             </form>

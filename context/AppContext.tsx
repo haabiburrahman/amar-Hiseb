@@ -336,8 +336,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     ];
 
     const demoProducts = [
-      { name: 'স্মার্টফোন X', category: 'ইলেকট্রনিক্স', quantity: 15, buyingPrice: 12000, createdAt: Date.now() },
-      { name: 'হেডফোন প্রো', category: 'এক্সেসরিজ', quantity: 5, buyingPrice: 800, createdAt: Date.now() }
+      { name: 'স্মার্টফোন X', category: 'ইলেকট্রনিক্স', quantity: 15, buyingPrice: 12000, unit: 'pcs', createdAt: Date.now() },
+      { name: 'হেডফোন প্রো', category: 'এক্সেসরিজ', quantity: 5, buyingPrice: 800, unit: 'pcs', createdAt: Date.now() }
     ];
 
     const demoSuppliers = [

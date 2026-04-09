@@ -40,7 +40,9 @@ const SalesManager = () => {
     const existing = cart.find(item => item.productId === product.id);
     if (existing) {
       if (existing.quantity >= product.quantity) return alert('পর্যাপ্ত স্টক নেই!');
-      setCart(cart.map(item => item.productId === product.id ? { ...item, quantity: item.quantity + 1, totalPrice: (item.quantity + 1) * item.unitSellingPrice } : item));
+      const increment = product.unit === 'kg' ? 0.5 : 1;
+      const newQty = existing.quantity + increment;
+      setCart(cart.map(item => item.productId === product.id ? { ...item, quantity: newQty, totalPrice: newQty * item.unitSellingPrice } : item));
     } else {
       if (product.quantity <= 0) return alert('আউট অফ স্টক!');
       const defaultSellingPrice = Math.round(product.buyingPrice * 1.2);
@@ -48,6 +50,7 @@ const SalesManager = () => {
         productId: product.id, 
         productName: product.name, 
         quantity: 1, 
+        unit: product.unit || 'pcs',
         unitBuyingPrice: product.buyingPrice,
         unitSellingPrice: defaultSellingPrice, 
         totalPrice: defaultSellingPrice
@@ -193,7 +196,7 @@ const SalesManager = () => {
             ${t.items.map((item: any, index: number) => `
               <tr style="background: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'};">
                 <td style="padding: 18px 20px; border-bottom: 1px solid #f1f5f9; font-size: 15px; font-weight: 600;">${item.productName}</td>
-                <td style="padding: 18px 20px; border-bottom: 1px solid #f1f5f9; text-align: center; font-size: 15px;">${item.quantity}</td>
+                <td style="padding: 18px 20px; border-bottom: 1px solid #f1f5f9; text-align: center; font-size: 15px;">${item.quantity} ${item.unit === 'kg' ? 'কেজি' : 'পিস'}</td>
                 <td style="padding: 18px 20px; border-bottom: 1px solid #f1f5f9; text-align: right; font-size: 15px;">৳${item.unitSellingPrice.toLocaleString()}</td>
                 <td style="padding: 18px 20px; border-bottom: 1px solid #f1f5f9; text-align: right; font-size: 15px; font-weight: 700;">৳${item.totalPrice.toLocaleString()}</td>
               </tr>
@@ -282,7 +285,7 @@ const SalesManager = () => {
                 <div className="flex justify-between items-start mb-1">
                   <span className="font-bold text-slate-800 text-sm line-clamp-1">{product.name}</span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${product.quantity < 5 ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500'}`}>
-                    স্টক: {product.quantity}
+                    স্টক: {product.quantity} {product.unit === 'kg' ? 'কেজি' : 'পিস'}
                   </span>
                 </div>
                 <div className="text-indigo-600 font-bold text-sm">৳{product.buyingPrice} <span className="text-[10px] text-slate-400 font-normal">(ক্রয়)</span></div>
@@ -314,11 +317,17 @@ const SalesManager = () => {
                   <div className="flex items-center gap-6">
                     {/* Quantity Control */}
                     <div className="flex flex-col items-center">
-                      <label className="text-[10px] text-slate-400 mb-1 font-bold">পরিমাণ</label>
+                      <label className="text-[10px] text-slate-400 mb-1 font-bold">পরিমাণ ({item.unit === 'kg' ? 'কেজি' : 'পিস'})</label>
                       <div className="flex items-center space-x-1">
-                        <button onClick={() => updateCartItem(item.productId, { quantity: Math.max(1, item.quantity - 1) })} className="p-1 bg-slate-100 rounded-lg hover:bg-slate-200"><Minus size={14}/></button>
-                        <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
-                        <button onClick={() => updateCartItem(item.productId, { quantity: item.quantity + 1 })} className="p-1 bg-slate-100 rounded-lg hover:bg-slate-200"><Plus size={14}/></button>
+                        <button onClick={() => updateCartItem(item.productId, { quantity: Math.max(0.1, item.quantity - (item.unit === 'kg' ? 0.5 : 1)) })} className="p-1 bg-slate-100 rounded-lg hover:bg-slate-200"><Minus size={14}/></button>
+                        <input 
+                          type="number" 
+                          step="any"
+                          className="w-12 text-center font-bold text-sm bg-transparent outline-none"
+                          value={item.quantity}
+                          onChange={(e) => updateCartItem(item.productId, { quantity: Number(e.target.value) })}
+                        />
+                        <button onClick={() => updateCartItem(item.productId, { quantity: item.quantity + (item.unit === 'kg' ? 0.5 : 1) })} className="p-1 bg-slate-100 rounded-lg hover:bg-slate-200"><Plus size={14}/></button>
                       </div>
                     </div>
 

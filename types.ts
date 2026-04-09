@@ -14,6 +14,7 @@ export interface Product {
   category: string;
   quantity: number;
   buyingPrice: number;
+  unit: 'pcs' | 'kg';
   createdAt: number;
 }
 
@@ -21,6 +22,7 @@ export interface SaleItem {
   productId: string;
   productName: string;
   quantity: number;
+  unit: 'pcs' | 'kg';
   unitBuyingPrice: number;
   unitSellingPrice: number;
   totalPrice: number;
