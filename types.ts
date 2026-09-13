@@ -32,7 +32,9 @@ export interface Transaction {
   id: string;
   customerId: string;
   customerName: string;
+  customerPhone?: string;
   items: SaleItem[];
+  fare?: number;
   totalAmount: number;
   paidAmount: number;
   dueAmount: number;

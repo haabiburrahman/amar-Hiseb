@@ -197,7 +197,7 @@ const CustomerManager = () => {
             ${customerTransactions.map((tx, index) => `
               <tr style="background: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'};">
                 <td style="padding: 15px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px;">${new Date(tx.date).toLocaleDateString('bn-BD')}</td>
-                <td style="padding: 15px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px; font-weight: 600;">${tx.totalAmount > 0 ? 'পণ্য বিক্রয়' : 'বকেয়া জমা'}</td>
+                <td style="padding: 15px 20px; border-bottom: 1px solid #f1f5f9; font-size: 13px; font-weight: 600;">${tx.totalAmount > 0 ? (tx.fare && tx.fare > 0 ? `পণ্য বিক্রয় (গাড়ি ভাড়া: ৳${tx.fare.toLocaleString()})` : 'পণ্য বিক্রয়') : 'বকেয়া জমা'}</td>
                 <td style="padding: 15px 20px; border-bottom: 1px solid #f1f5f9; text-align: right; font-size: 13px;">${tx.totalAmount > 0 ? '৳' + tx.totalAmount.toLocaleString() : '-'}</td>
                 <td style="padding: 15px 20px; border-bottom: 1px solid #f1f5f9; text-align: right; font-size: 13px; color: #059669; font-weight: 700;">৳${tx.paidAmount.toLocaleString()}</td>
                 <td style="padding: 15px 20px; border-bottom: 1px solid #f1f5f9; text-align: right; font-size: 13px; font-weight: 800; color: ${tx.dueAmount > 0 ? '#e11d48' : '#059669'}">${tx.dueAmount > 0 ? '+' : ''}${tx.dueAmount.toLocaleString()}</td>
@@ -370,7 +370,17 @@ const CustomerManager = () => {
                   <div className="flex justify-between items-start">
                     <div className="flex items-center space-x-4">
                       <div className={`p-3 rounded-2xl ${tx.totalAmount > 0 ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>{tx.totalAmount > 0 ? <ArrowUpRight size={24} /> : <ArrowDownLeft size={24} />}</div>
-                      <div><p className="font-bold text-slate-800 text-lg leading-tight">{tx.totalAmount > 0 ? 'পণ্য বিক্রয়' : 'বকেয়া জমা'}</p><p className="text-xs text-slate-400 mt-1">{new Date(tx.date).toLocaleDateString('bn-BD')}</p></div>
+                      <div>
+                        <p className="font-bold text-slate-800 text-lg leading-tight">{tx.totalAmount > 0 ? 'পণ্য বিক্রয়' : 'বকেয়া জমা'}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-xs text-slate-400">{new Date(tx.date).toLocaleDateString('bn-BD')}</p>
+                          {tx.fare && tx.fare > 0 ? (
+                            <span className="text-[10px] bg-indigo-50 text-indigo-600 font-semibold px-1.5 py-0.5 rounded">
+                              গাড়ি ভাড়া: ৳{tx.fare.toLocaleString()}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
                     <div className="text-right"><p className={`font-black text-xl ${tx.totalAmount > 0 ? 'text-slate-800' : 'text-emerald-600'}`}>৳{tx.paidAmount.toLocaleString()}</p><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">পরিশোধিত</p></div>
                   </div>

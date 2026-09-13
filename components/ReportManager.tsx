@@ -75,11 +75,12 @@ const ReportManager = () => {
     }
 
     // Exporting raw transaction data for reliable re-importing
-    const headers = ['তারিখ', 'কাস্টমারের নাম', 'মোট বিল', 'পরিশোধিত', 'বকেয়া', 'লাভ'];
+    const headers = ['তারিখ', 'কাস্টমারের নাম', 'মোট বিল', 'ভাড়া', 'পরিশোধিত', 'বকেয়া', 'লাভ'];
     const rows = transactions.map(t => [
       new Date(t.date).toISOString().split('T')[0],
       `"${t.customerName}"`,
       t.totalAmount,
+      t.fare || 0,
       t.paidAmount,
       t.dueAmount,
       t.profit
@@ -123,9 +124,21 @@ const ReportManager = () => {
           const date = parts[0];
           const custName = parts[1];
           const total = Number(parts[2]);
-          const paid = Number(parts[3]);
-          const due = Number(parts[4]);
-          const profit = Number(parts[5] || 0);
+          let fare = 0;
+          let paid = 0;
+          let due = 0;
+          let profit = 0;
+
+          if (parts.length >= 7) {
+            fare = Number(parts[3] || 0);
+            paid = Number(parts[4] || 0);
+            due = Number(parts[5] || 0);
+            profit = Number(parts[6] || 0);
+          } else {
+            paid = Number(parts[3] || 0);
+            due = Number(parts[4] || 0);
+            profit = Number(parts[5] || 0);
+          }
 
           if (custName && !isNaN(total)) {
             // Find or create customer
@@ -144,6 +157,7 @@ const ReportManager = () => {
                 customerId: targetId,
                 customerName: custName,
                 totalAmount: total,
+                fare: fare,
                 paidAmount: paid,
                 dueAmount: due,
                 profit: profit,
@@ -151,9 +165,9 @@ const ReportManager = () => {
                   productId: 'imported',
                   productName: 'Imported Record',
                   quantity: 1,
-                  unitBuyingPrice: total - profit,
-                  unitSellingPrice: total,
-                  totalPrice: total
+                  unitBuyingPrice: (total - fare) - profit,
+                  unitSellingPrice: total - fare,
+                  totalPrice: total - fare
                 }]
               });
               importCount++;
@@ -349,7 +363,14 @@ const ReportManager = () => {
                     </div>
                     <div>
                       <p className="font-semibold text-slate-800">{t.customerName}</p>
-                      <p className="text-xs text-slate-400">{new Date(t.date).toLocaleDateString('bn-BD')}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <p className="text-xs text-slate-400">{new Date(t.date).toLocaleDateString('bn-BD')}</p>
+                        {t.fare && t.fare > 0 ? (
+                          <span className="text-[10px] text-indigo-600 bg-indigo-50 font-semibold px-1.5 py-0.5 rounded">
+                            ভাড়া: ৳{t.fare.toLocaleString()}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">

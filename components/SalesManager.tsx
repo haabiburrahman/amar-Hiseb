@@ -12,7 +12,8 @@ import {
   Plus,
   Minus,
   Edit2,
-  Printer
+  Printer,
+  Truck
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -26,6 +27,7 @@ const SalesManager = () => {
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [cart, setCart] = useState<any[]>([]);
   const [paidAmount, setPaidAmount] = useState<number | ''>('');
+  const [fare, setFare] = useState<number | ''>('');
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [lastTransaction, setLastTransaction] = useState<any>(null);
@@ -73,9 +75,12 @@ const SalesManager = () => {
     setCart(cart.filter(item => item.productId !== productId));
   };
 
-  const currentBill = cart.reduce((sum, item) => sum + item.totalPrice, 0);
+  const itemsTotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
+  const fareAmount = fare === '' ? 0 : Number(fare);
+  const currentBill = itemsTotal + fareAmount;
   const totalBuyingCost = cart.reduce((sum, item) => sum + (item.quantity * item.unitBuyingPrice), 0);
-  const profit = currentBill - totalBuyingCost;
+  // গাড়ি ভাড়ায় কোনো লাভ-লস থাকবে না (শুধুমাত্র পণ্যের বিক্রি থেকে কেনা মূল্যের ব্যবধানই লাভ)
+  const profit = itemsTotal - totalBuyingCost;
   const grandTotal = currentBill + previousDue;
   const actualPaid = paidAmount === '' ? 0 : Number(paidAmount);
   const finalDue = Math.max(0, grandTotal - actualPaid);
@@ -128,6 +133,7 @@ const SalesManager = () => {
       customerName: selectedCustomer?.name || 'Unknown',
       customerPhone: selectedCustomer?.phone || '',
       items: cart,
+      fare: fareAmount,
       totalAmount: currentBill,
       paidAmount: actualPaid,
       dueAmount: currentBill - actualPaid, 
@@ -146,6 +152,7 @@ const SalesManager = () => {
     setCart([]);
     setSelectedCustomerId('');
     setPaidAmount('');
+    setFare('');
   };
 
   const generatePDF = async (t: any) => {
@@ -206,16 +213,26 @@ const SalesManager = () => {
 
         <!-- Totals Section -->
         <div style="display: flex; justify-content: flex-end;">
-          <div style="width: 350px;">
-            <div style="display: flex; justify-content: space-between; padding: 12px 20px; font-size: 15px;">
-              <span style="color: #64748b; font-weight: 500;">বর্তমান বিল:</span>
+          <div style="width: 360px;">
+            <div style="display: flex; justify-content: space-between; padding: 10px 20px; font-size: 15px;">
+              <span style="color: #64748b; font-weight: 500;">পণ্যের মোট মূল্য:</span>
+              <span style="font-weight: 700; color: #1e293b;">৳${((t.totalAmount || 0) - (t.fare || 0)).toLocaleString()}</span>
+            </div>
+            ${(t.fare || 0) > 0 ? `
+            <div style="display: flex; justify-content: space-between; padding: 10px 20px; font-size: 15px; background: #f1f5f9; border-radius: 8px; margin: 4px 0; color: #334155;">
+              <span style="font-weight: 600;">গাড়ি ভাড়া / পরিবহন খরচ:</span>
+              <span style="font-weight: 800; color: #4338ca;">(+) ৳${Number(t.fare).toLocaleString()}</span>
+            </div>
+            ` : ''}
+            <div style="display: flex; justify-content: space-between; padding: 10px 20px; font-size: 15px; border-top: 1px dashed #cbd5e1; margin-top: 4px;">
+              <span style="color: #475569; font-weight: 600;">বর্তমান মোট বিল:</span>
               <span style="font-weight: 700; color: #1e293b;">৳${t.totalAmount.toLocaleString()}</span>
             </div>
-            <div style="display: flex; justify-content: space-between; padding: 12px 20px; font-size: 15px;">
+            <div style="display: flex; justify-content: space-between; padding: 10px 20px; font-size: 15px;">
               <span style="color: #64748b; font-weight: 500;">পূর্বের বকেয়া:</span>
               <span style="font-weight: 700; color: #e11d48;">৳${t.prevDue.toLocaleString()}</span>
             </div>
-            <div style="display: flex; justify-content: space-between; padding: 12px 20px; font-size: 15px; background: #f0fdf4; border-radius: 8px; margin: 5px 0; color: #166534;">
+            <div style="display: flex; justify-content: space-between; padding: 10px 20px; font-size: 15px; background: #f0fdf4; border-radius: 8px; margin: 5px 0; color: #166534;">
               <span style="font-weight: 600;">নগদ জমা:</span>
               <span style="font-weight: 800;">(-) ৳${t.paidAmount.toLocaleString()}</span>
             </div>
@@ -383,18 +400,52 @@ const SalesManager = () => {
               </select>
             </div>
 
+            {/* Vehicle Fare / Transport Cost */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-sm font-bold text-slate-600 flex items-center gap-1.5">
+                  <Truck size={16} className="text-indigo-600" />
+                  <span>গাড়ি ভাড়া / পরিবহন খরচ (ঐচ্ছিক)</span>
+                </label>
+                <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">লাভ-লস নেই</span>
+              </div>
+              <div className="relative">
+                <input 
+                  type="number" 
+                  min="0"
+                  className="w-full p-3 pl-8 border border-slate-200 rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800" 
+                  placeholder="0" 
+                  value={fare} 
+                  onChange={(e) => setFare(e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))} 
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">৳</span>
+              </div>
+            </div>
+
             <div className="pt-4 space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-50">
               <div className="flex justify-between text-sm">
-                <span className="text-slate-500">বর্তমান বিল:</span>
-                <span className="font-bold text-slate-800">৳{currentBill}</span>
+                <span className="text-slate-500">পণ্যের মূল্য:</span>
+                <span className="font-bold text-slate-800">৳{itemsTotal.toLocaleString()}</span>
+              </div>
+              {fareAmount > 0 && (
+                <div className="flex justify-between text-sm text-indigo-600 font-semibold bg-indigo-50/60 px-2.5 py-1.5 rounded-lg">
+                  <span className="flex items-center gap-1">
+                    <Truck size={14} /> গাড়ি ভাড়া:
+                  </span>
+                  <span>(+) ৳{fareAmount.toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm pt-1 border-t border-slate-200">
+                <span className="text-slate-600 font-medium">বর্তমান মোট বিল:</span>
+                <span className="font-bold text-slate-800">৳{currentBill.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">পূর্বের বকেয়া:</span>
-                <span className="font-bold text-rose-500">৳{previousDue}</span>
+                <span className="font-bold text-rose-500">৳{previousDue.toLocaleString()}</span>
               </div>
               <div className="flex justify-between font-bold text-xl text-indigo-600 pt-3 border-t border-slate-200">
                 <span>মোট প্রদেয়:</span>
-                <span>৳{grandTotal}</span>
+                <span>৳{grandTotal.toLocaleString()}</span>
               </div>
             </div>
 
@@ -411,7 +462,7 @@ const SalesManager = () => {
 
             <div className="flex justify-between p-3 bg-rose-50 rounded-xl border border-rose-100 font-bold text-rose-600">
               <span className="text-sm">নিট বকেয়া থাকবে:</span>
-              <span className="text-lg">৳{finalDue}</span>
+              <span className="text-lg">৳{finalDue.toLocaleString()}</span>
             </div>
           </div>
           
@@ -471,10 +522,20 @@ const SalesManager = () => {
               <p className="text-slate-500 mt-2 font-medium">কাস্টমার: {lastTransaction.customerName}</p>
             </div>
             
-            <div className="bg-slate-50 rounded-2xl p-4 space-y-2">
+            <div className="bg-slate-50 rounded-2xl p-4 space-y-2 text-left">
                <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">মোট বিল:</span>
-                  <span className="font-bold text-slate-700">৳{lastTransaction.totalAmount.toLocaleString()}</span>
+                  <span className="text-slate-400">পণ্যের মোট মূল্য:</span>
+                  <span className="font-bold text-slate-700">৳{((lastTransaction.totalAmount || 0) - (lastTransaction.fare || 0)).toLocaleString()}</span>
+               </div>
+               {(lastTransaction.fare || 0) > 0 && (
+                 <div className="flex justify-between text-sm text-indigo-600 font-semibold">
+                    <span>গাড়ি ভাড়া / পরিবহন:</span>
+                    <span>(+) ৳{Number(lastTransaction.fare).toLocaleString()}</span>
+                 </div>
+               )}
+               <div className="flex justify-between text-sm pt-1 border-t border-slate-200">
+                  <span className="text-slate-500 font-semibold">মোট বিল:</span>
+                  <span className="font-bold text-slate-800">৳{lastTransaction.totalAmount.toLocaleString()}</span>
                </div>
                <div className="flex justify-between text-sm">
                   <span className="text-slate-400">জমা হয়েছে:</span>
