@@ -1,5 +1,6 @@
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext.tsx';
 import { 
   Search, 
@@ -20,7 +21,9 @@ import {
   ArrowDownLeft,
   Printer,
   FileDown,
-  ArrowRight
+  ArrowRight,
+  Filter,
+  AlertCircle
 } from 'lucide-react';
 import { Customer, Transaction } from '../types.ts';
 import { jsPDF } from 'jspdf';
@@ -49,10 +52,28 @@ const CustomerManager = () => {
   const [formData, setFormData] = useState({ name: '', phone: '', upazila: '', initialDue: '0' });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialFilter = searchParams.get('showDues') === 'true' || searchParams.get('filter') === 'due' ? 'due' : 'all';
+  const [statusFilter, setStatusFilter] = useState<'all' | 'due' | 'paid'>(initialFilter);
+
+  useEffect(() => {
+    if (searchParams.get('showDues') === 'true' || searchParams.get('filter') === 'due') {
+      setStatusFilter('due');
+    }
+  }, [searchParams]);
+
+  const dueCustomersCount = useMemo(() => customers.filter(c => c.totalDue > 0).length, [customers]);
+  const paidCustomersCount = useMemo(() => customers.filter(c => c.totalDue <= 0).length, [customers]);
+  const totalDueAmount = useMemo(() => customers.reduce((sum, c) => sum + (c.totalDue > 0 ? c.totalDue : 0), 0), [customers]);
+
   const filteredCustomers = customers.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          c.phone.includes(searchTerm);
-    return matchesSearch;
+                          c.phone.includes(searchTerm) ||
+                          (c.upazila && c.upazila.toLowerCase().includes(searchTerm.toLowerCase()));
+    if (!matchesSearch) return false;
+    if (statusFilter === 'due') return c.totalDue > 0;
+    if (statusFilter === 'paid') return c.totalDue <= 0;
+    return true;
   });
 
   const customerTransactions = useMemo(() => {
@@ -287,8 +308,88 @@ const CustomerManager = () => {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="text" placeholder="নাম বা ফোন দিয়ে খুঁজুন..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+      {/* Filter Tabs & Search Bar */}
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200">
+            <button
+              onClick={() => {
+                setStatusFilter('all');
+                setSearchParams({});
+              }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                statusFilter === 'all'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              সকল কাস্টমার ({customers.length})
+            </button>
+            <button
+              onClick={() => {
+                setStatusFilter('due');
+                setSearchParams({ filter: 'due' });
+              }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                statusFilter === 'due'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'text-rose-600 hover:bg-rose-50'
+              }`}
+            >
+              <AlertCircle size={14} />
+              <span>বকেয়া আছে ({dueCustomersCount})</span>
+            </button>
+            <button
+              onClick={() => {
+                setStatusFilter('paid');
+                setSearchParams({ filter: 'paid' });
+              }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                statusFilter === 'paid'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-emerald-600 hover:bg-emerald-50'
+              }`}
+            >
+              পরিশোধিত ({paidCustomersCount})
+            </button>
+          </div>
+
+          {statusFilter === 'due' && (
+            <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-700 px-3 py-1 rounded-xl text-xs font-bold">
+              <span>মোট বাকি: ৳{totalDueAmount.toLocaleString()}</span>
+              <button 
+                onClick={() => {
+                  setStatusFilter('all');
+                  setSearchParams({});
+                }}
+                className="text-rose-500 hover:text-rose-800 underline text-[11px] ml-1"
+              >
+                রিসেট
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white p-3.5 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input 
+              type="text" 
+              placeholder="নাম, ফোন বা ঠিকানা দিয়ে খুঁজুন..." 
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 text-sm" 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+            />
+          </div>
+          {searchTerm && (
+            <button 
+              onClick={() => setSearchTerm('')} 
+              className="text-xs text-slate-500 hover:text-slate-800 px-2 py-1 self-center"
+            >
+              ক্লিয়ার
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">

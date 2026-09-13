@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { 
   Truck, 
@@ -12,7 +13,8 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Calendar,
-  Wallet
+  Wallet,
+  AlertCircle
 } from 'lucide-react';
 
 const SupplierManager = () => {
@@ -26,6 +28,16 @@ const SupplierManager = () => {
     deleteSupplierTransaction
   } = useAppContext();
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialFilter = searchParams.get('showDues') === 'true' || searchParams.get('filter') === 'due' ? 'due' : 'all';
+  const [statusFilter, setStatusFilter] = useState<'all' | 'due' | 'paid'>(initialFilter);
+
+  useEffect(() => {
+    if (searchParams.get('showDues') === 'true' || searchParams.get('filter') === 'due') {
+      setStatusFilter('due');
+    }
+  }, [searchParams]);
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -35,11 +47,18 @@ const SupplierManager = () => {
   const [newSupplier, setNewSupplier] = useState({ name: '', phone: '', company: '', totalDue: 0 });
   const [newTx, setNewTx] = useState({ amount: 0, type: 'payment' as 'payment' | 'purchase', note: '' });
 
-  const filteredSuppliers = suppliers.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.phone.includes(searchTerm)
-  );
+  const dueSuppliersCount = useMemo(() => suppliers.filter(s => s.totalDue > 0).length, [suppliers]);
+  const paidSuppliersCount = useMemo(() => suppliers.filter(s => s.totalDue <= 0).length, [suppliers]);
+
+  const filteredSuppliers = suppliers.filter(s => {
+    const matches = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      s.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.phone.includes(searchTerm);
+    if (!matches) return false;
+    if (statusFilter === 'due') return s.totalDue > 0;
+    if (statusFilter === 'paid') return s.totalDue <= 0;
+    return true;
+  });
 
   const handleAddSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,13 +123,73 @@ const SupplierManager = () => {
 
       {/* Search and List */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="p-4 border-b bg-slate-50/50">
+        <div className="p-4 border-b bg-slate-50/50 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 p-1 bg-slate-200/70 rounded-xl">
+              <button
+                onClick={() => {
+                  setStatusFilter('all');
+                  setSearchParams({});
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  statusFilter === 'all'
+                    ? 'bg-white text-indigo-600 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                সকল ({suppliers.length})
+              </button>
+              <button
+                onClick={() => {
+                  setStatusFilter('due');
+                  setSearchParams({ filter: 'due' });
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  statusFilter === 'due'
+                    ? 'bg-orange-600 text-white shadow-sm'
+                    : 'text-orange-600 hover:bg-orange-50'
+                }`}
+              >
+                <AlertCircle size={13} />
+                <span>পাওনাদার ({dueSuppliersCount})</span>
+              </button>
+              <button
+                onClick={() => {
+                  setStatusFilter('paid');
+                  setSearchParams({ filter: 'paid' });
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  statusFilter === 'paid'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-emerald-600 hover:bg-emerald-50'
+                }`}
+              >
+                পরিশোধিত ({paidSuppliersCount})
+              </button>
+            </div>
+
+            {statusFilter === 'due' && (
+              <div className="text-xs font-bold text-orange-700 bg-orange-50 border border-orange-200 px-3 py-1 rounded-xl flex items-center gap-2">
+                <span>পাওনাদারদের তালিকা ফিল্টার করা রয়েছে</span>
+                <button 
+                  onClick={() => {
+                    setStatusFilter('all');
+                    setSearchParams({});
+                  }}
+                  className="underline text-orange-800 text-[11px]"
+                >
+                  সব দেখুন
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
             <input 
               type="text" 
               placeholder="সাপ্লায়ারের নাম, কোম্পানি বা ফোন দিয়ে খুঁজুন..."
-              className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
